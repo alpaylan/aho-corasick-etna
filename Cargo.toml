@@ -50,6 +50,12 @@ logging = ["dep:log"]
 [dependencies]
 log = { version = "0.4.17", optional = true }
 memchr = { version = "2.4.0", default-features = false, optional = true }
+# ETNA framework dependencies — linked by src/bin/etna.rs.
+proptest = "1.11.0"
+quickcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/quickcheck", features = ["etna"] }
+crabcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/crabcheck" }
+hegeltest = "0.3.7"
+rand = "0.9"
 
 [dev-dependencies]
 doc-comment = "0.3.3"
@@ -67,8 +73,18 @@ all-features = true
 #     RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features
 rustdoc-args = ["--cfg", "docsrs", "--generate-link-to-definition"]
 
+[[bin]]
+name = "etna"
+path = "src/bin/etna.rs"
+
+[[test]]
+name = "etna_witnesses"
+path = "tests/etna_witnesses.rs"
+
 [profile.release]
 debug = true
+# ETNA: keep debug assertions on in release so internal invariants panic.
+debug-assertions = true
 
 [profile.bench]
 debug = true

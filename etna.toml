@@ -1,0 +1,37 @@
+# ETNA workload index for aho-corasick.
+#
+# One [[variant]] per injected mutation. Source of truth for variant -> property
+# mapping. Every other fact is derivable from the source tree:
+#   - ls patches/*.patch                       (patch-based variants)
+#   - grep -rn "pub fn property_" src/etna.rs  (property functions)
+#   - grep -rn "fn witness_.*_case_" tests/    (witness tests)
+#
+# Base commit for this workload is HEAD of master on this tree. Every
+# etna/<variant> branch is master + exactly one patch applied on top.
+
+name = "aho-corasick"
+language = "Rust"
+
+[[variant]]
+name = "replace_all_utf8_boundary_e453f60_1"
+property = "replace_all_utf8_safe"
+injection = "patch"
+patch = "patches/replace_all_utf8_boundary_e453f60_1.patch"
+source_commit = "e453f6062651f338ca3a7fb217f7590a2f89f9ab"
+witnesses = [
+    "witness_replace_all_utf8_safe_case_split_codepoint",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/automaton.rs"]
+
+[[variant]]
+name = "prefilter_pattern_id_sync_2df0983_1"
+property = "find_iter_prefilter_parity"
+injection = "patch"
+patch = "patches/prefilter_pattern_id_sync_2df0983_1.patch"
+source_commit = "2df0983e7ef76bf50e6213fee35cda87af191292"
+witnesses = [
+    "witness_find_iter_prefilter_parity_case_leftmost_prefix_collision",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/nfa/noncontiguous.rs"]

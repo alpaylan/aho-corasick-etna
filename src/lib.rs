@@ -256,6 +256,8 @@ mod macros;
 mod ahocorasick;
 pub mod automaton;
 pub mod dfa;
+#[cfg(feature = "std")]
+pub mod etna;
 pub mod nfa;
 pub mod packed;
 #[cfg(test)]
