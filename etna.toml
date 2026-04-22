@@ -1,37 +1,70 @@
-# ETNA workload index for aho-corasick.
-#
-# One [[variant]] per injected mutation. Source of truth for variant -> property
-# mapping. Every other fact is derivable from the source tree:
-#   - ls patches/*.patch                       (patch-based variants)
-#   - grep -rn "pub fn property_" src/etna.rs  (property functions)
-#   - grep -rn "fn witness_.*_case_" tests/    (witness tests)
-#
-# Base commit for this workload is HEAD of master on this tree. Every
-# etna/<variant> branch is master + exactly one patch applied on top.
-
 name = "aho-corasick"
-language = "Rust"
+description = """
+ETNA workload for the Rust `aho-corasick` crate. Variants are patch-based:
+each re-introduces one historical bug-fix on top of the master base commit
+and pairs it with a framework-neutral property, four PBT adapters, and a
+deterministic witness test.
+"""
+language = "rust"
+crate = "aho-corasick"
+base_commit = "c08e9dd03e21db03b292ddd027db903909921f09"
 
-[[variant]]
-name = "replace_all_utf8_boundary_e453f60_1"
-property = "replace_all_utf8_safe"
-injection = "patch"
-patch = "patches/replace_all_utf8_boundary_e453f60_1.patch"
-source_commit = "e453f6062651f338ca3a7fb217f7590a2f89f9ab"
-witnesses = [
-    "witness_replace_all_utf8_safe_case_split_codepoint",
-]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+[[tasks]]
+mutations = ["replace_all_utf8_boundary_e453f60_1"]
+
+[tasks.source]
+repo = "https://github.com/BurntSushi/aho-corasick"
+commits = ["e453f6062651f338ca3a7fb217f7590a2f89f9ab"]
+commit_subjects = ["fuzz: fix a bug caught by the fuzzer"]
+summary = "A fuzzer-found panic in `AhoCorasick::replace_all` when a byte-level pattern match lands on a non-codepoint boundary inside a `&str` haystack. The replace loop was indexing the haystack with the raw match range before verifying the range sits on char boundaries."
+
+[tasks.injection]
+kind = "patch"
 files = ["src/automaton.rs"]
+locations = [{ file = "src/automaton.rs", symbol = "try_replace_all_with" }]
+patch = "patches/replace_all_utf8_boundary_e453f60_1.patch"
 
-[[variant]]
-name = "prefilter_pattern_id_sync_2df0983_1"
-property = "find_iter_prefilter_parity"
-injection = "patch"
-patch = "patches/prefilter_pattern_id_sync_2df0983_1.patch"
-source_commit = "2df0983e7ef76bf50e6213fee35cda87af191292"
+[tasks.bug]
+short_name = "replace_all_utf8_boundary"
+invariant = """
+`AhoCorasick::replace_all(haystack, patterns, &[replacement; N])` never panics when the patterns are given as raw bytes and the haystack is a valid `&str`, even when a byte-level pattern match would split a multi-byte UTF-8 scalar. The function must silently skip matches that land on non-codepoint boundaries.
+"""
+how_triggered = """
+The fix added an `if !haystack.is_char_boundary(m.start()) || !haystack.is_char_boundary(m.end()) { continue; }` guard in `try_replace_all_with`. Reverting the guard means `&haystack[..m.start()]` is evaluated on byte offsets that are not char boundaries, and Rust's `&str` indexing panics with `byte index X is not a char boundary`. The witness drives this with the single-byte pattern `0xC3` (the lead byte of `é`) against the haystack `"éx"`: the match at `start=0, end=1` lands between the two bytes of `é`, and the downstream `&haystack[..1]` slice panics.
+"""
+
+[[tasks.tasks]]
+property = "ReplaceAllUtf8Safe"
 witnesses = [
-    "witness_find_iter_prefilter_parity_case_leftmost_prefix_collision",
+  { test_fn = "witness_replace_all_utf8_safe_case_split_codepoint" },
 ]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+
+[[tasks]]
+mutations = ["prefilter_pattern_id_sync_2df0983_1"]
+
+[tasks.source]
+repo = "https://github.com/BurntSushi/aho-corasick"
+commits = ["2df0983e7ef76bf50e6213fee35cda87af191292"]
+commit_subjects = ["prefilter: fix a prefilter bug"]
+summary = "A pattern-ID desync between the Aho-Corasick NFA and the packed prefilter. In leftmost-first mode, a pattern whose prefix is already accepted short-circuits NFA compilation, so the prefilter's pattern-ID counter fell behind and later patterns ended up with the wrong IDs — producing mismatched `find_iter` output depending on whether the prefilter was enabled."
+
+[tasks.injection]
+kind = "patch"
 files = ["src/nfa/noncontiguous.rs"]
+locations = [{ file = "src/nfa/noncontiguous.rs", symbol = "Compiler::build_trie" }]
+patch = "patches/prefilter_pattern_id_sync_2df0983_1.patch"
+
+[tasks.bug]
+short_name = "prefilter_pattern_id_sync"
+invariant = """
+`AhoCorasick::find_iter` returns the same `(PatternID, start, end)` sequence regardless of whether the prefilter is enabled. Since the prefilter is a pure runtime acceleration, it must not change the set of matches — especially not the reported pattern IDs.
+"""
+how_triggered = """
+The packed prefilter assigns pattern IDs in the order `self.prefilter.add(pat)` is called, independent of the Aho-Corasick NFA's IDs. In leftmost-first mode, a pattern whose prefix coincides with an earlier accepting state is short-circuited (`continue 'PATTERNS`) during compilation. The fix commit registers each pattern with the prefilter *before* the pattern walk, so every NFA pattern ID has a corresponding prefilter ID even when the walk short-circuits. The mutation moves `self.prefilter.add(pat)` to *after* the pattern walk: short-circuited patterns never reach it, and every later pattern ends up one (or more) IDs too low in the prefilter. When the packed prefilter reports `Candidate::Match(pattern_id=k)` on a haystack hit, the automaton looks up match state `k` and reports the wrong `PatternID` — diverging from the prefilter-disabled run. The witness uses `["abcd", "abcdxy", "mnop", "wxyz"]` and haystack `"abcdxy abcd mnop wxyz"`: `"abcdxy"` is short-circuited, so `"mnop"` and `"wxyz"` land at prefilter IDs 1 and 2 while their NFA IDs are 2 and 3 — visible as diverging `find_iter` output across the two build configurations.
+"""
+
+[[tasks.tasks]]
+property = "FindIterPrefilterParity"
+witnesses = [
+  { test_fn = "witness_find_iter_prefilter_parity_case_leftmost_prefix_collision" },
+]

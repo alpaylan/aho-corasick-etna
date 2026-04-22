@@ -11,4 +11,6 @@ BREADCRUMBS
 /tmp
 /aho-corasick-debug/Cargo.lock
 progress.jsonl
+etna.log
 /.hegel/
+/.marauders/
