@@ -6,6 +6,7 @@ and pairs it with a framework-neutral property, four PBT adapters, and a
 deterministic witness test.
 """
 language = "rust"
+strategies = ["proptest", "quickcheck", "crabcheck", "hegel"]
 crate = "aho-corasick"
 base_commit = "c08e9dd03e21db03b292ddd027db903909921f09"
 
