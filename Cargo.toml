@@ -52,8 +52,8 @@ log = { version = "0.4.17", optional = true }
 memchr = { version = "2.4.0", default-features = false, optional = true }
 # ETNA framework dependencies — linked by src/bin/etna.rs.
 proptest = "1.11.0"
-quickcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/quickcheck", features = ["etna"] }
-crabcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/crabcheck" }
+quickcheck = { git = "https://github.com/alpaylan/quickcheck.git", branch = "master", features = ["etna"] }
+crabcheck = { git = "https://github.com/alpaylan/crabcheck.git", branch = "main" }
 hegeltest = "0.3.7"
 rand = "0.9"
 
