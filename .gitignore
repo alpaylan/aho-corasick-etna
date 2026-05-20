@@ -14,3 +14,10 @@ progress.jsonl
 etna.log
 /.hegel/
 /.marauders/
+
+# etna runtime artifacts (auto-added)
+/coverage/
+*.profraw
+/profdata/
+/etna.log
+/progress.jsonl
